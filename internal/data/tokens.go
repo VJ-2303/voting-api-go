@@ -25,12 +25,14 @@ func GenerateToken(userID int64, ttl time.Duration, scope string, secret string)
 		Expiry: time.Now().Add(ttl),
 		Scope:  scope,
 	}
+
 	claims := jwt.MapClaims{
 		"sub":   token.UserID,
 		"scope": token.Scope,
 		"exp":   jwt.NewNumericDate(token.Expiry),
 		"iat":   jwt.NewNumericDate(time.Now()),
 	}
+
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	signedString, err := jwtToken.SignedString([]byte(secret))

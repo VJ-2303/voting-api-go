@@ -13,6 +13,7 @@ import (
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 	ErrRecordNotFound = errors.New("record not found")
+	AnonymousUser     = &User{}
 )
 
 type User struct {
@@ -78,6 +79,10 @@ func ValidatePasswordPlaintext(v *validator.Validator, password string) {
 	v.Check(len(password) <= 72, "password", "must not be more than 72 character long")
 }
 
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
+}
+
 type UserModel struct {
 	DB *sql.DB
 }
@@ -92,6 +97,7 @@ func (m UserModel) Insert(user *User) error {
 	args := []any{
 		user.Name, user.Email, user.Password.hash, user.Activated,
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -121,7 +127,39 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 		&user.CreatedAt,
 		&user.Name,
 		&user.Email,
-		&user.Password.hash, // Scan the hash into the custom password type
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (m UserModel) GetByID(id int64) (*User, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+	query := `
+			SELECT id, created_at , name, email, password_hash, activated, version
+		    FROM users
+			WHERE id = $1
+			 `
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
 		&user.Activated,
 		&user.Version,
 	)

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/vj-2303/voting-api-go/internal/data"
 )
 
 const version = "1.0.0"
@@ -31,7 +32,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
-	db     *sql.DB
+	models data.Models
 }
 
 func main() {
@@ -62,7 +63,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
-		db:     db,
+		models: data.NewModels(db),
 	}
 
 	srv := &http.Server{

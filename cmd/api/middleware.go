@@ -40,7 +40,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 		headerParts := strings.Split(authHeader, " ")
-		if len(headerParts) != 2 || headerParts[0] != "Bearer " {
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 			app.invalidAuthenticationTokenResponse(w, r)
 			return
 		}
@@ -48,7 +48,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		tokenString := headerParts[1]
 
 		claims := jwt.MapClaims{}
-		_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 			// Check the signing algorithm.
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, errors.New("unexpected signing method")
@@ -94,6 +94,17 @@ func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.Han
 		user := app.contextGetUser(r)
 		if user.IsAnonymous() {
 			app.authenticationRequiredResponse(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (app *application) requireAdminUser(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := app.contextGetUser(r)
+		if user.Role != "admin" {
+			app.notPermittedResponse(w, r)
 			return
 		}
 		next.ServeHTTP(w, r)

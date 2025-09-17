@@ -19,5 +19,7 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens", app.createAuthenticationTokenHandler)
 
+	router.HandlerFunc(http.MethodPost, "/v1/polls", app.requireAdminUser(app.createPollHandler))
+
 	return router
 }

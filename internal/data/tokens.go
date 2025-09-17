@@ -1,6 +1,7 @@
 package data
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -27,7 +28,7 @@ func GenerateToken(userID int64, ttl time.Duration, scope string, secret string)
 	}
 
 	claims := jwt.MapClaims{
-		"sub":   token.UserID,
+		"sub":   strconv.FormatInt(userID, 10),
 		"scope": token.Scope,
 		"exp":   jwt.NewNumericDate(token.Expiry),
 		"iat":   jwt.NewNumericDate(time.Now()),

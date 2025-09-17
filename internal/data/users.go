@@ -23,6 +23,7 @@ type User struct {
 	Email     string    `json:"email"`
 	Password  password  `json:"-"`
 	Activated bool      `json:"activated"`
+	Role      string    `json:"role"`
 	Version   int       `json:"version"`
 }
 
@@ -113,7 +114,7 @@ func (m UserModel) Insert(user *User) error {
 
 func (m UserModel) GetByEmail(email string) (*User, error) {
 	query := `
-		SELECT id, created_at, name, email, password_hash, activated, version
+		SELECT id, created_at, name, email, password_hash, activated,role, version
 		FROM users
 		WHERE email = $1
 		  	 `
@@ -129,6 +130,7 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 		&user.Email,
 		&user.Password.hash,
 		&user.Activated,
+		&user.Role,
 		&user.Version,
 	)
 	if err != nil {
@@ -145,7 +147,7 @@ func (m UserModel) GetByID(id int64) (*User, error) {
 		return nil, ErrRecordNotFound
 	}
 	query := `
-			SELECT id, created_at , name, email, password_hash, activated, version
+			SELECT id, created_at , name, email, password_hash, activated,role, version
 		    FROM users
 			WHERE id = $1
 			 `
@@ -161,6 +163,7 @@ func (m UserModel) GetByID(id int64) (*User, error) {
 		&user.Email,
 		&user.Password.hash,
 		&user.Activated,
+		&user.Role,
 		&user.Version,
 	)
 	if err != nil {

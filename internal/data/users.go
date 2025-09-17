@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
+	ErrRecordNotFound = errors.New("record not found")
 )
 
 type User struct {
@@ -66,6 +67,17 @@ func ValidateUser(v *validator.Validator, user *User) {
 	v.Check(user.Password.hash != nil, "password", "must be provided")
 }
 
+func ValidateEmail(v *validator.Validator, email string) {
+	v.Check(email != "", "email", "must be provided")
+	v.Check(validator.Matches(email, validator.EmailRX), "email", "must be an valid email address")
+}
+
+func ValidatePasswordPlaintext(v *validator.Validator, password string) {
+	v.Check(password != "", "password", "must be provided")
+	v.Check(len(password) >= 8, "password", "must be at least 8 character long")
+	v.Check(len(password) <= 72, "password", "must not be more than 72 character long")
+}
+
 type UserModel struct {
 	DB *sql.DB
 }
@@ -91,4 +103,33 @@ func (m UserModel) Insert(user *User) error {
 		return err
 	}
 	return nil
+}
+
+func (m UserModel) GetByEmail(email string) (*User, error) {
+	query := `
+		SELECT id, created_at, name, email, password_hash, activated, version
+		FROM users
+		WHERE email = $1
+		  	 `
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash, // Scan the hash into the custom password type
+		&user.Activated,
+		&user.Version,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
 }

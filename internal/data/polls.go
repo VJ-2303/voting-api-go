@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/lib/pq"
@@ -17,6 +18,16 @@ type Poll struct {
 	Options     []string  `json:"options"`
 	CreatedBy   int64     `json:"created_by"`
 	Version     int       `json:"version"`
+}
+
+func ValidatePoll(v *validator.Validator, poll *Poll) {
+	v.Check(poll.Title != "", "title", "must be provided")
+	v.Check(len(poll.Title) <= 500, "title", "must be less than 500 chars")
+
+	v.Check(poll.Options != nil, "options", "must be provided")
+	v.Check(len(poll.Options) >= 2, "options", "must contain at least 2 options")
+	v.Check(len(poll.Options) <= 20, "options", "must be less than 20 options")
+	v.Check(validator.Unique(poll.Options), "options", "must not contain duplicate values")
 }
 
 type PollsModel struct {
@@ -37,12 +48,34 @@ func (m PollsModel) Insert(poll *Poll) error {
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&poll.ID, &poll.CreatedAt, &poll.Version)
 }
 
-func ValidatePoll(v *validator.Validator, poll *Poll) {
-	v.Check(poll.Title != "", "title", "must be provided")
-	v.Check(len(poll.Title) <= 500, "title", "must be less than 500 chars")
+func (m PollsModel) GetByID(id int64) (*Poll, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+	query := `
+		SELECT id, created_at, title, description,options,created_by, version
+		FROM polls
+		WHERE id = $1
+			 `
+	var poll Poll
 
-	v.Check(poll.Options != nil, "options", "must be provided")
-	v.Check(len(poll.Options) >= 2, "options", "must contain at least 2 options")
-	v.Check(len(poll.Options) <= 20, "options", "must be less than 20 options")
-	v.Check(validator.Unique(poll.Options), "options", "must not contain duplicate values")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		&poll.ID,
+		&poll.CreatedAt,
+		&poll.Title,
+		&poll.Description,
+		pq.Array(&poll.Options), // Use pq.Array to scan the text array
+		&poll.CreatedBy,
+		&poll.Version,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &poll, nil
 }

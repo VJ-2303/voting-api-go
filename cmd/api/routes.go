@@ -24,5 +24,7 @@ func (app *application) routes() *httprouter.Router {
 	router.HandlerFunc(http.MethodGet, "/v1/polls/:id", app.showPollHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/polls/:id/votes", app.requireAuthenticatedUser(app.castVoteHandler))
 
+	router.HandlerFunc(http.MethodGet, "/v1/polls/:id/results", app.requireAdminUser(app.requireAuthenticatedUser(app.showPollResultsHandler)))
+
 	return router
 }
